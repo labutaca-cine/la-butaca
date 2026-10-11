@@ -74,6 +74,7 @@ def add(title, author, note, uid):
 
 def main():
     updates = tg("getUpdates", timeout=0, allowed_updates='["message"]').get("result", [])
+    print(f"сообщений: {len(updates)}")
     last = None
     for u in updates:
         last = u["update_id"]
@@ -81,7 +82,9 @@ def main():
         text = (m.get("text") or "").strip()
         chat = m.get("chat") or {}
         group = chat.get("type") in ("group", "supergroup")
-        if not text or (m.get("from") or {}).get("is_bot"):
+        kind = chat.get("type")
+        if not text or (m.get("from") or {}).get("is_bot") or m.get("is_automatic_forward"):
+            print(f"update {u['update_id']}: {kind}, пропуск (пусто/бот/пересланный пост канала)")
             continue
         reply = lambda t: tg("sendMessage", chat_id=chat["id"], text=t, reply_to_message_id=m["message_id"])
         cmd = text.split()[0].split("@")[0].lower()
@@ -96,12 +99,14 @@ def main():
         note = (why or rest).strip()
         title = title_part.strip() if explicit else tmdb_match(title_part.strip())
         if not title:
+            print(f"update {u['update_id']}: {kind}, не похоже на название — {'переспрашиваю' if (not group or explicit) else 'молчу'}")
             if not group or explicit:
                 reply("🤔 Не нашёл такой фильм или сериал. Напишите название точнее — или так:\n/propongo Название — почему")
             continue
         who = m.get("from") or {}
         author = " ".join(x for x in (who.get("first_name"), who.get("last_name")) if x) or who.get("username") or "кто-то"
         add(title, author, note, f"{chat.get('id')}:{m.get('message_id')}")
+        print(f"update {u['update_id']}: {kind}, добавлено предложение")
         reply(f"✅ ¡Gracias! Принято: «{title}». Предложение уже на сайте La Butaca в разделе Propuestas.")
     if last is not None:
         tg("getUpdates", offset=last + 1, limit=1, timeout=0)  # подтверждаем обработанные сообщения
