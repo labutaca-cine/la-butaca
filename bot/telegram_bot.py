@@ -83,7 +83,10 @@ def main():
         chat = m.get("chat") or {}
         group = chat.get("type") in ("group", "supergroup")
         kind = chat.get("type")
-        if not text or (m.get("from") or {}).get("is_bot") or m.get("is_automatic_forward"):
+        sender_chat = m.get("sender_chat") or {}
+        # анонимный админ группы или пост от имени канала приходят от служебного бота — их не пропускаем
+        real_bot = (m.get("from") or {}).get("is_bot") and not sender_chat
+        if not text or real_bot or m.get("is_automatic_forward"):
             print(f"update {u['update_id']}: {kind}, пропуск (пусто/бот/пересланный пост канала)")
             continue
         reply = lambda t: tg("sendMessage", chat_id=chat["id"], text=t, reply_to_message_id=m["message_id"])
@@ -104,7 +107,10 @@ def main():
                 reply("🤔 Не нашёл такой фильм или сериал. Напишите название точнее — или так:\n/propongo Название — почему")
             continue
         who = m.get("from") or {}
-        author = " ".join(x for x in (who.get("first_name"), who.get("last_name")) if x) or who.get("username") or "кто-то"
+        if sender_chat:
+            author = "La Butaca (админ)"
+        else:
+            author = " ".join(x for x in (who.get("first_name"), who.get("last_name")) if x) or who.get("username") or "кто-то"
         add(title, author, note, f"{chat.get('id')}:{m.get('message_id')}")
         print(f"update {u['update_id']}: {kind}, добавлено предложение")
         reply(f"✅ ¡Gracias! Принято: «{title}». Предложение уже на сайте La Butaca в разделе Propuestas.")
