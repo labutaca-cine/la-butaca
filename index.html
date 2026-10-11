@@ -40,12 +40,17 @@ if (saved) open(b64(saved)).catch(function () { try { localStorage.removeItem("b
 document.getElementById("f").addEventListener("submit", async function (ev) {
   ev.preventDefault();
   var err = document.getElementById("err"); err.textContent = "Проверяю…";
+  var remember = document.getElementById("rem").checked;
   try {
     var bits = await bitsFrom(document.getElementById("pw").value);
-    await open(bits);
-    if (document.getElementById("rem") && document.getElementById("rem").checked) {
+    var ct = b64(DATA);
+    if (String.fromCharCode.apply(null, ct.slice(0, 8)) === "Salted__") ct = ct.slice(16);
+    var key = await crypto.subtle.importKey("raw", bits.slice(0, 32), "AES-CBC", false, ["decrypt"]);
+    await crypto.subtle.decrypt({ name: "AES-CBC", iv: bits.slice(32, 48) }, key, ct);
+    if (remember) {
       try { localStorage.setItem("butaca-key-" + SALT, btoa(String.fromCharCode.apply(null, bits))); } catch (e) {}
     }
+    await open(bits);
   } catch (e) { err.textContent = "Неверный пароль. Попробуйте ещё раз."; }
 });
 </script></body></html>
