@@ -18,10 +18,10 @@ import time
 import urllib.parse
 import urllib.request
 
-TG = os.environ["TG_TOKEN"]
-TMDB = os.environ["TMDB_TOKEN"]
-SB_URL = os.environ["SB_URL"].rstrip("/")
-SB_KEY = os.environ["SB_KEY"]
+TG = os.environ.get("TG_TOKEN", "")
+TMDB = os.environ.get("TMDB_TOKEN", "")
+SB_URL = os.environ.get("SB_URL", "").rstrip("/")
+SB_KEY = os.environ.get("SB_KEY", "")
 
 HELP = ("🎬 Это бот La Butaca. Напишите название фильма или сериала — я добавлю его в «Propuestas» на сайте.\n"
         "Можно с пояснением на второй строке.\nЕсли не узнаю название: /propongo Название — почему")
@@ -108,4 +108,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if not all((TG, TMDB, SB_URL, SB_KEY)):
+        print("Секреты ещё не добавлены (TG_TOKEN, TMDB_TOKEN, SB_URL, SB_KEY) — пропускаю")
+    else:
+        main()

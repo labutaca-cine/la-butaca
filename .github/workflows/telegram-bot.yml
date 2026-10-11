@@ -1,0 +1,27 @@
+name: La Butaca bot
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: telegram-bot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Обработать сообщения боту
+        env:
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
+          SB_URL: ${{ secrets.SB_URL }}
+          SB_KEY: ${{ secrets.SB_KEY }}
+        run: python3 bot/telegram_bot.py
