@@ -11,6 +11,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   bot:
@@ -18,7 +19,18 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
+      - name: Письмо о новых комментариях
+        env:
+          SB_URL: ${{ secrets.SB_URL }}
+          SB_KEY: ${{ secrets.SB_KEY }}
+          MAIL_USER: ${{ secrets.MAIL_USER }}
+          MAIL_APP_PASSWORD: ${{ secrets.MAIL_APP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 bot/notify_comments.py
       - name: Обработать сообщения боту
+        # сбой бота не должен «ломать» запуск, иначе следующий запуск повторит письма о комментариях
+        continue-on-error: true
         env:
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
