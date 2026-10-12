@@ -1,8 +1,8 @@
-"""Уведомления на почту о новых комментариях на сайте La Butaca.
+"""Уведомления на почту о новых комментариях и предложениях La Butaca (сайт и Telegram-бот).
 
 Запускается GitHub Actions вместе с ботом (каждые ~5–15 минут).
-Берёт из Supabase комментарии (kind=comment), появившиеся с начала прошлого успешного запуска,
-и шлёт одно письмо со всеми новыми комментариями.
+Берёт из Supabase комментарии (kind=comment) и предложения (kind=suggest), появившиеся с начала
+прошлого успешного запуска, и шлёт одно письмо со всем новым.
 Секреты (Settings → Secrets → Actions): SB_URL, SB_KEY, MAIL_USER (адрес Gmail, с которого слать),
 MAIL_APP_PASSWORD (пароль приложения Google), MAIL_TO (куда слать; по умолчанию = MAIL_USER).
 Без почтовых секретов — тихо пропускает.
@@ -42,27 +42,34 @@ def window():
     return since, me["run_started_at"]
 
 
-def comments(since, until):
-    q = urllib.parse.urlencode([("select", "*"), ("kind", "eq.comment"),
+def fresh(since, until):
+    q = urllib.parse.urlencode([("select", "*"), ("kind", "in.(comment,suggest)"),
                                 ("updated_at", "gte." + since), ("updated_at", "lt." + until),
                                 ("order", "updated_at.asc")])
     req = urllib.request.Request(f"{SB_URL}/rest/v1/marks?{q}", headers={"apikey": SB_KEY})
     with urllib.request.urlopen(req, timeout=30) as r:
-        return [row for row in json.load(r) if not (row.get("data") or {}).get("_deleted") and (row.get("data") or {}).get("text")]
+        return [row for row in json.load(r) if not (row.get("data") or {}).get("_deleted")
+                and ((row.get("data") or {}).get("text") or row["kind"] == "suggest")]
 
 
 def send(rows):
-    items = []
-    for row in rows:
-        d = row["data"]
-        items.append(f"<p><b>{html.escape(d.get('title') or row['key'])}</b><br>"
-                     f"{html.escape(d.get('author') or 'кто-то')}: {html.escape(d['text'])}</p>")
-    body = ("<p>💬 Новые комментарии на La Butaca:</p>" + "".join(items) +
-            f'<p><a href="{SITE}">Открыть La Butaca</a></p>')
-    n = len(rows)
+    com = [r for r in rows if r["kind"] == "comment"]
+    sug = [r for r in rows if r["kind"] == "suggest"]
+    body = ""
+    if com:
+        body += "<p>💬 <b>Новые комментарии</b></p>" + "".join(
+            f"<p><b>{html.escape(r['data'].get('title') or r['key'])}</b><br>"
+            f"{html.escape(r['data'].get('author') or 'кто-то')}: {html.escape(r['data']['text'])}</p>" for r in com)
+    if sug:
+        src = {"telegram": "Telegram", "email": "почта"}
+        body += "<p>🎬 <b>Новые предложения (Propuestas)</b></p>" + "".join(
+            f"<p><b>{html.escape(r['data'].get('title') or r['key'])}</b><br>"
+            f"{html.escape(r['data'].get('author') or 'кто-то')} · {src.get(r['data'].get('source'), 'сайт')}"
+            + (f"<br>{html.escape(r['data']['note'])}" if r["data"].get("note") else "") + "</p>" for r in sug)
+    body += f'<p><a href="{SITE}">Открыть La Butaca</a></p>'
+    parts = ([f"комментарии ({len(com)})"] if com else []) + ([f"предложения ({len(sug)})"] if sug else [])
     msg = MIMEText(body, "html", "utf-8")
-    msg["Subject"] = f"La Butaca: новый комментарий ({n})" if n > 1 else \
-        f"La Butaca: комментарий к «{rows[0]['data'].get('title') or rows[0]['key']}»"
+    msg["Subject"] = "La Butaca: новые " + " и ".join(parts)
     msg["From"] = formataddr(("La Butaca", USER))
     msg["To"] = TO
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as s:
@@ -72,8 +79,8 @@ def send(rows):
 
 def main():
     since, until = window()
-    rows = comments(since, until)
-    print(f"новых комментариев с {since}: {len(rows)}")
+    rows = fresh(since, until)
+    print(f"новых комментариев и предложений с {since}: {len(rows)}")
     if rows:
         send(rows)
         print("письмо отправлено")

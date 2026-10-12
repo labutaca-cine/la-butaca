@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
-      - name: Письмо о новых комментариях
+      - name: Письмо о новых комментариях и предложениях
         env:
           SB_URL: ${{ secrets.SB_URL }}
           SB_KEY: ${{ secrets.SB_KEY }}
