@@ -1,0 +1,27 @@
+name: La Mesa bot
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: mesa-bot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сообщения боту и посты в канал
+        env:
+          MESA_TG_TOKEN: ${{ secrets.MESA_TG_TOKEN }}
+          MESA_CHANNEL: ${{ secrets.MESA_CHANNEL }}
+          SB_URL: ${{ secrets.SB_URL }}
+          SB_KEY: ${{ secrets.SB_KEY }}
+        run: python3 bot/mesa_bot.py
