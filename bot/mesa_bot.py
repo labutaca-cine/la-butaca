@@ -23,8 +23,8 @@ import urllib.parse
 import urllib.request
 from zoneinfo import ZoneInfo
 
-TG = os.environ.get("MESA_TG_TOKEN", "")
-CHANNEL = os.environ.get("MESA_CHANNEL", "")
+TG = os.environ.get("MESA_TG_TOKEN", "").strip()
+CHANNEL = os.environ.get("MESA_CHANNEL", "").strip()
 SB_URL = os.environ.get("SB_URL", "").rstrip("/")
 SB_KEY = os.environ.get("SB_KEY", "")
 SITE = "https://labutaca-cine.github.io/la-butaca/mesa/"
@@ -203,5 +203,13 @@ if __name__ == "__main__":
     if not all((TG, SB_URL, SB_KEY)):
         print("Секреты ещё не добавлены (MESA_TG_TOKEN, SB_URL, SB_KEY) — пропускаю")
         sys.exit(0)
-    handle_updates()
-    broadcast()
+    # понятная причина сбоя в журнале GitHub (без секретов)
+    if ":" not in TG or " " in TG:
+        sys.exit("MESA_TG_TOKEN не похож на токен бота (нужен вид 123456789:AA...). Вставьте секрет заново.")
+    try:
+        handle_updates()
+        broadcast()
+    except urllib.error.HTTPError as e:
+        where = "Telegram" if "telegram" in e.url else "Supabase"
+        hint = " — неверный токен бота, вставьте MESA_TG_TOKEN заново" if where == "Telegram" and e.code in (401, 404) else ""
+        sys.exit(f"{where} ответил ошибкой {e.code}{hint}")
