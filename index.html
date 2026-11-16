@@ -33,6 +33,9 @@ async function open(bits) {
   var key = await crypto.subtle.importKey("raw", bits.slice(0, 32), "AES-CBC", false, ["decrypt"]);
   var pt = await crypto.subtle.decrypt({ name: "AES-CBC", iv: bits.slice(32, 48) }, key, ct);
   var page = new TextDecoder().decode(pt);
+  // ждём, пока форма входа дочитана целиком: иначе страница дописывается ПОД формой (сохранённый пароль, 16.11.2026)
+  if (document.readyState === "loading") await new Promise(function (r) { document.addEventListener("DOMContentLoaded", r, { once: true }); });
+  await new Promise(function (r) { setTimeout(r, 0); });
   document.open(); document.write(page); document.close();
 }
 var saved = null; try { saved = localStorage.getItem("butaca-key-" + SALT); } catch (e) {}
